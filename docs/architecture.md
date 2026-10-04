@@ -29,7 +29,7 @@
 ## 3. Directory Layout
 
 ```text
-foliograph/
+DocGraph/
 ├── data/
 │   ├── 00_inbox/                  # Local staging folder (future iCloud Inbox)
 │   ├── archive/                   # Deterministic long-term storage
