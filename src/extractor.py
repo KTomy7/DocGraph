@@ -50,37 +50,35 @@ def extract_from_pdf(pdf_path: Path) -> Tuple[str, str]:
     Returns:
         Tuple[str, str]: (extracted_text, method_used ["digital" | "ocr"])
     """
-    doc = pymupdf.open(pdf_path)
-    full_text = []
+    with pymupdf.open(pdf_path) as doc:
+        full_text = []
 
-    # 1. Attempt fast digital text extraction
-    for page in doc:
-        full_text.append(page.get_text())
+        # 1. Attempt fast digital text extraction
+        for page in doc:
+            full_text.append(page.get_text())
 
-    extracted = clean_text("\n".join(full_text))
+        extracted = clean_text("\n".join(full_text))
 
-    # If digital text exists and meets the minimum length, return immediately
-    if len(extracted) >= MIN_DIGITAL_TEXT_CHARS:
-        doc.close()
-        return extracted, "digital"
+        # If digital text exists and meets the minimum length, return immediately
+        if len(extracted) >= MIN_DIGITAL_TEXT_CHARS:
+            return extracted, "digital"
 
-    # 2. Fallback to Tesseract OCR for scanned pages
-    ocr_text = []
-    # 300 DPI (zoom 300 / 72 = 4.1667) gives optimal OCR accuracy for IDs and small print
-    zoom = 300 / 72
-    mat = pymupdf.Matrix(zoom, zoom)
+        # 2. Fallback to Tesseract OCR for scanned pages
+        ocr_text = []
+        # 300 DPI (zoom 300 / 72 = 4.1667) gives optimal OCR accuracy for IDs and small print
+        zoom = 300 / 72
+        mat = pymupdf.Matrix(zoom, zoom)
 
-    for page_idx in range(len(doc)):
-        page = doc[page_idx]
-        pix = page.get_pixmap(matrix=mat)
-        img_bytes = pix.tobytes("png")
-        
-        with Image.open(io.BytesIO(img_bytes)) as img:
-            page_text = pytesseract.image_to_string(img, lang=TESSERACT_LANGUAGES)
-            ocr_text.append(page_text)
+        for page_idx in range(len(doc)):
+            page = doc[page_idx]
+            pix = page.get_pixmap(matrix=mat)
+            img_bytes = pix.tobytes("png")
 
-    doc.close()
-    return clean_text("\n".join(ocr_text)), "ocr"
+            with Image.open(io.BytesIO(img_bytes)) as img:
+                page_text = pytesseract.image_to_string(img, lang=TESSERACT_LANGUAGES)
+                ocr_text.append(page_text)
+
+        return clean_text("\n".join(ocr_text)), "ocr"
 
 
 def extract_text(file_path: Path) -> Tuple[str, str]:
