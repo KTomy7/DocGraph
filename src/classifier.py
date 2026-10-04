@@ -6,7 +6,7 @@ Strictly enforces known categories with 'Miscellaneous' as the fallback bucket.
 import json
 import re
 from typing import Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 import ollama
 
 from src.config import OLLAMA_HOST, LLM_MODEL, get_active_categories
@@ -30,8 +30,15 @@ class DocumentMetadata(BaseModel):
 
     @field_validator("category")
     @classmethod
-    def validate_category(cls, value: str) -> str:
-        active = get_active_categories()
+    def validate_category(cls, value: str, info: ValidationInfo) -> str:
+        active = (
+            info.context.get("active_categories")
+            if isinstance(info.context, dict)
+            else None
+        )
+        if active is None:
+            active = get_active_categories()
+
         for cat in active:
             if cat.lower() == value.lower():
                 return cat
@@ -79,7 +86,23 @@ def classify_document(text: str, original_filename: str = "document.pdf") -> Doc
         options={"temperature": 0.0},
     )
 
-    data = json.loads(response.message.content)
+    try:
+        content = response["message"]["content"]
+    except (KeyError, TypeError) as exc:
+        raise ValueError("Ollama response did not contain message content") from exc
+
+    if not isinstance(content, str):
+        raise ValueError("Ollama response message content was not a string")
+
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"Ollama returned invalid JSON for document classification: {exc.msg}"
+        ) from exc
+
+    if not isinstance(data, dict):
+        raise ValueError("Ollama classification response must be a JSON object")
 
     # Sanitize the output filename
     canonical = sanitize_filename(data.get("canonical_filename", f"doc_archive.{ext}"))
@@ -87,4 +110,7 @@ def classify_document(text: str, original_filename: str = "document.pdf") -> Doc
         canonical = f"{canonical.rsplit('.', 1)[0]}.{ext}"
     data["canonical_filename"] = canonical
 
-    return DocumentMetadata(**data)
+    return DocumentMetadata.model_validate(
+        data,
+        context={"active_categories": categories},
+    )
