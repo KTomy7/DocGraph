@@ -47,7 +47,3 @@ def init_filesystem() -> None:
 
     for category in VALID_CATEGORIES:
         (ARCHIVE_DIR / category).mkdir(parents=True, exist_ok=True)
-
-
-# Run initialization on import
-init_filesystem()

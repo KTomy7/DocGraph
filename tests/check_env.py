@@ -9,7 +9,6 @@ from rich.console import Console
 from rich.table import Table
 import ollama
 
-# Ensure project root is in sys.path so we can import from src
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -22,6 +21,7 @@ from src.config import (
     LLM_MODEL,
     EMBEDDING_MODEL,
     VALID_CATEGORIES,
+    init_filesystem,
 )
 
 console = Console()
@@ -32,9 +32,16 @@ def verify_ollama() -> bool:
     try:
         client = ollama.Client(host=OLLAMA_HOST)
         models_response = client.list()
-        
+
+        # Handle both ListResponse object and legacy dict structures
+        models = getattr(models_response, "models", None)
+        if models is None and isinstance(models_response, dict):
+            models = models_response.get("models", [])
+        elif models is None:
+            models = []
+
         installed_models = []
-        for m in models_response.get("models", []):
+        for m in models:
             if isinstance(m, dict):
                 installed_models.append(m.get("model", "") or m.get("name", ""))
             else:
@@ -54,8 +61,11 @@ def verify_tesseract() -> bool:
     return shutil.which("tesseract") is not None
 
 
-def main():
+def main() -> int:
     console.rule("[bold cyan]DocGraph - Milestone 1 Verification[/bold cyan]")
+
+    # Explicitly ensure filesystem structure during check
+    init_filesystem()
 
     table = Table(title="System & Environment Status")
     table.add_column("Component", style="bold")
@@ -98,9 +108,11 @@ def main():
 
     if dirs_exist and categories_exist and tess_ok and ollama_ok:
         console.print("\n[bold green]✓ Milestone 1 Complete: Environment is ready for Milestone 2![/bold green]\n")
+        return 0
     else:
         console.print("\n[bold yellow]! Please fix the items above before proceeding.[/bold yellow]\n")
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
