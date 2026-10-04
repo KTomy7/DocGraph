@@ -37,6 +37,7 @@ EMBEDDING_MODEL = os.getenv("DOCGRAPH_EMBED_MODEL", "nomic-embed-text")
 
 # --- OCR & Text Settings ---
 MIN_DIGITAL_TEXT_CHARS = 50  # Fallback to Tesseract if fewer characters extracted
+TESSERACT_LANGUAGES = "eng+ron+hun+spa"
 
 
 def init_filesystem() -> None:
