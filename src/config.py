@@ -20,13 +20,17 @@ RAG_DIR = DATA_DIR / "rag"
 STATE_DB_PATH = DATA_DIR / "state.db"
 
 # Canonical Document Categories
-VALID_CATEGORIES: List[str] = [
+CORE_CATEGORIES: List[str] = [
     "Identity",
     "Academic",
     "Housing",
     "Contracts",
     "Finance",
+    "University",
     "Vehicle",
+    "Medical",
+    "Travel",
+    "Work",
     "Miscellaneous",
 ]
 
@@ -46,5 +50,18 @@ def init_filesystem() -> None:
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
     RAG_DIR.mkdir(parents=True, exist_ok=True)
 
-    for category in VALID_CATEGORIES:
+    for category in CORE_CATEGORIES:
         (ARCHIVE_DIR / category).mkdir(parents=True, exist_ok=True)
+
+def get_active_categories() -> List[str]:
+    """
+    Returns core categories plus any established folders in the archive.
+    'Miscellaneous' is guaranteed to be present as the fallback bucket.
+    """
+    categories = set(CORE_CATEGORIES)
+    if ARCHIVE_DIR.exists():
+        for item in ARCHIVE_DIR.iterdir():
+            if item.is_dir() and not item.name.startswith("."):
+                categories.add(item.name)
+    return sorted(list(categories))
+
