@@ -93,8 +93,9 @@ To guarantee file integrity, files follow an atomic lifecycle:
      ▼
 [Step 4: Atomic Physical Move]
   ├─ Target: ./data/archive/{category}/{canonical_filename}
-  ├─ Copy file to destination -> Verify integrity -> Remove from ./00_inbox/
-  └─ Insert record into SQLite (hash, original_name, archive_path, timestamp)
+  ├─ Copy file to destination -> Verify integrity -> Insert record into SQLite
+  ├─ Remove from ./00_inbox/ only after the catalog insert succeeds
+  └─ If cataloging fails, remove the new archive copy and leave the inbox file for retry
      │
      ▼
 [Step 5: Incremental Graph RAG Indexing]

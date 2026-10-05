@@ -134,3 +134,26 @@ def test_relocate_file_catalogs_and_skips_duplicate(
     assert duplicate_archive_path == archived_path
     assert duplicate_path.exists()
     assert "Skipping duplicate document" in caplog.text
+
+
+def test_relocate_file_rolls_back_archive_when_cataloging_fails(
+    tmp_path: Path,
+    metadata: DocumentMetadata,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    archive_dir = tmp_path / "archive"
+    db_path = tmp_path / "state.db"
+    source_path = tmp_path / "incoming.pdf"
+    source_path.write_bytes(b"document contents")
+    monkeypatch.setattr(mover, "ARCHIVE_DIR", archive_dir)
+
+    def fail_cataloging(*args: object, **kwargs: object) -> None:
+        raise OSError("catalog unavailable")
+
+    monkeypatch.setattr(mover, "catalog_document", fail_cataloging)
+
+    with pytest.raises(OSError, match="catalog unavailable"):
+        mover.relocate_file(source_path, metadata, db_path)
+
+    assert source_path.exists()
+    assert list(archive_dir.rglob("*.pdf")) == []

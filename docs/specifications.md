@@ -164,8 +164,9 @@ To prevent file loss, sync loops, or indexing corruptions, files follow a strict
      ```
 4. **Atomic Relocation:**
    * Destination path is determined: `data/archive/{category}/{canonical_filename}`.
-   * Copy file to target $\to$ Verify hash equality $\to$ Unlink original from `00_inbox/`.
-   * Record entry in `state.db`.
+   * Copy file to target $\to$ Verify hash equality $\to$ Record entry in `state.db`.
+   * Unlink the original from `00_inbox/` only after cataloging succeeds.
+   * If cataloging fails, remove the new archive copy and leave the inbox file for retry.
 5. **Incremental Graph Indexing:**
    * Dispatch raw text and document metadata to `LightRAG.insert()`.
    * LightRAG extracts entity nodes, links edges, and embeds chunks without requiring a full re-index of historical files.

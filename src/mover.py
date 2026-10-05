@@ -97,16 +97,26 @@ def relocate_file(
         os.replace(temp_path, target_path)
         temp_path = None
 
-        # The verified destination is now durable; remove the source last.
+        try:
+            catalog_document(
+                sha256=original_hash,
+                original_filename=source_path.name,
+                metadata=metadata,
+                archive_path=target_path,
+                extraction_method=extraction_method,
+                db_path=db_path,
+            )
+        except Exception:
+            logger.exception(
+                "Cataloging failed for %s; removing archived copy and leaving "
+                "the inbox source in place",
+                source_path,
+            )
+            target_path.unlink(missing_ok=True)
+            raise
+
+        # Remove the source only after the verified archive and catalog entry exist.
         source_path.unlink()
-        catalog_document(
-            sha256=original_hash,
-            original_filename=source_path.name,
-            metadata=metadata,
-            archive_path=target_path,
-            extraction_method=extraction_method,
-            db_path=db_path,
-        )
     finally:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
