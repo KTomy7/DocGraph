@@ -12,17 +12,18 @@ from src.config import STATE_DB_PATH
 from src.classifier import DocumentMetadata
 
 
-def get_catalog_connection() -> sqlite3.Connection:
+def get_catalog_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
     """Returns a connection to the SQLite catalog database with dict-like row access."""
-    conn = sqlite3.connect(STATE_DB_PATH)
+    path = db_path or STATE_DB_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def init_catalog() -> None:
+def init_catalog(db_path: Optional[Path] = None) -> None:
     """Initializes the document catalog table and indexes if they do not exist."""
-    STATE_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with get_catalog_connection() as conn:
+    with get_catalog_connection(db_path) as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS documents (
                 sha256 TEXT PRIMARY KEY,
@@ -44,9 +45,9 @@ def init_catalog() -> None:
         conn.commit()
 
 
-def is_document_cataloged(sha256: str) -> bool:
+def is_document_cataloged(sha256: str, db_path: Optional[Path] = None) -> bool:
     """Check if a document with this exact SHA-256 hash has already been registered."""
-    with get_catalog_connection() as conn:
+    with get_catalog_connection(db_path) as conn:
         cursor = conn.execute("SELECT 1 FROM documents WHERE sha256 = ?", (sha256,))
         return cursor.fetchone() is not None
 
@@ -57,9 +58,10 @@ def catalog_document(
     metadata: DocumentMetadata,
     archive_path: Path,
     extraction_method: str,
+    db_path: Optional[Path] = None,
 ) -> None:
     """Register a newly processed document into the catalog."""
-    with get_catalog_connection() as conn:
+    with get_catalog_connection(db_path) as conn:
         conn.execute(
             """
             INSERT OR REPLACE INTO documents (
@@ -95,11 +97,12 @@ def search_catalog(
     query: Optional[str] = None,
     category: Optional[str] = None,
     limit: int = 50,
+    db_path: Optional[Path] = None,
 ) -> List[Dict[str, Any]]:
     """
     Search indexed documents by category, issuer, type, or general keyword.
     """
-    with get_catalog_connection() as conn:
+    with get_catalog_connection(db_path) as conn:
         sql = "SELECT * FROM documents WHERE 1=1"
         params: List[Any] = []
 
@@ -126,9 +129,11 @@ def search_catalog(
         return [dict(row) for row in cursor.fetchall()]
 
 
-def get_catalog_entry_by_hash(sha256: str) -> Optional[Dict[str, Any]]:
+def get_catalog_entry_by_hash(
+    sha256: str, db_path: Optional[Path] = None
+) -> Optional[Dict[str, Any]]:
     """Retrieve full catalog record for a specific hash."""
-    with get_catalog_connection() as conn:
+    with get_catalog_connection(db_path) as conn:
         cursor = conn.execute("SELECT * FROM documents WHERE sha256 = ?", (sha256,))
         row = cursor.fetchone()
         return dict(row) if row else None
