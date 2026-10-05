@@ -116,7 +116,7 @@ docgraph/
 ├── src/
 │   ├── __init__.py
 │   ├── config.py                               # Paths, model aliases, and thresholds
-│   ├── db.py                                   # SQLite schema, hash indexing, queries
+│   ├── catalog.py                              # SQLite schema, hash indexing, queries
 │   ├── extractor.py                            # PyMuPDF + Tesseract fallback logic
 │   ├── classifier.py                           # Ollama structured JSON prompt handler
 │   ├── mover.py                                # Atomic move, rename, and verification
@@ -146,7 +146,7 @@ To prevent file loss, sync loops, or indexing corruptions, files follow a strict
 
 1. **Deduplication & Lock Verification:**
    * Calculate file SHA-256 hash.
-   * Query `state.db`. If the hash exists, skip processing and output a notification.
+   * Query `state.db`. If the hash exists, log the duplicate, skip processing, and leave the inbox file in place.
    * Ensure write operations are closed before reading (prevents partial reads during large file copies).
 2. **Text Normalization:**
    * Run fast digital text extraction via `PyMuPDF`.
@@ -164,8 +164,9 @@ To prevent file loss, sync loops, or indexing corruptions, files follow a strict
      ```
 4. **Atomic Relocation:**
    * Destination path is determined: `data/archive/{category}/{canonical_filename}`.
-   * Copy file to target $\to$ Verify hash equality $\to$ Unlink original from `00_inbox/`.
-   * Record entry in `state.db`.
+   * Copy file to target $\to$ Verify hash equality $\to$ Record entry in `state.db`.
+   * Unlink the original from `00_inbox/` only after cataloging succeeds.
+   * If cataloging fails, remove the new archive copy and leave the inbox file for retry.
 5. **Incremental Graph Indexing:**
    * Dispatch raw text and document metadata to `LightRAG.insert()`.
    * LightRAG extracts entity nodes, links edges, and embeds chunks without requiring a full re-index of historical files.
