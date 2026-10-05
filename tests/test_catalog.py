@@ -1,95 +1,131 @@
-"""
-DocGraph - Milestone 4 Verification (Catalog & Deduplication Registry)
-"""
+"""Tests for the SQLite document catalog."""
 
-import sys
-import tempfile
 from pathlib import Path
-from rich.console import Console
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+import pytest
 
-from src.config import init_filesystem
-from src.classifier import DocumentMetadata
 from src.catalog import (
-    init_catalog,
     catalog_document,
+    get_catalog_connection,
+    get_catalog_entry_by_hash,
+    init_catalog,
     is_document_cataloged,
     search_catalog,
-    get_catalog_entry_by_hash,
 )
+from src.classifier import DocumentMetadata
+from src import mover
 
-console = Console()
 
-
-def main() -> int:
-    console.rule("[bold cyan]DocGraph - Milestone 4: Document Catalog & Deduplication[/bold cyan]")
-
-    test_hash = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-    mock_metadata = DocumentMetadata(
+@pytest.fixture
+def metadata() -> DocumentMetadata:
+    return DocumentMetadata(
         category="University",
         document_type="Transcript",
         issuer="TUClujNapoca",
         document_date="2024-02-15",
         canonical_filename="2024-02-15_University_TUClujNapoca_Transcript.pdf",
     )
-    mock_path = PROJECT_ROOT / "data" / "archive" / "University" / mock_metadata.canonical_filename
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        db_path = Path(temp_dir) / "state.db"
-        init_filesystem()
-        init_catalog(db_path)
-
-        try:
-            # 1. Deduplication Check (Before Insert)
-            console.print("[bold]1. Checking non-existent hash check...[/bold]")
-            assert not is_document_cataloged(test_hash, db_path), "Hash should not exist initially!"
-            console.print("  [green]Confirmed: Hash not found in catalog[/green]")
-
-            # 2. Register Document
-            console.print("\n[bold]2. Cataloging document...[/bold]")
-            catalog_document(
-                sha256=test_hash,
-                original_filename="transcript_semester_1.pdf",
-                metadata=mock_metadata,
-                archive_path=mock_path,
-                extraction_method="digital",
-                db_path=db_path,
-            )
-            assert is_document_cataloged(test_hash, db_path), "Hash should exist after cataloging!"
-            console.print("  [green]Confirmed: Document successfully cataloged[/green]")
-
-            # 3. Retrieve by Hash
-            console.print("\n[bold]3. Fetching record by SHA-256...[/bold]")
-            record = get_catalog_entry_by_hash(test_hash, db_path)
-            assert record is not None, "Failed to retrieve record by hash"
-            assert record["issuer"] == "TUClujNapoca"
-            assert record["category"] == "University"
-            console.print(f"  Retrieved: [cyan]{record['canonical_filename']}[/cyan] ({record['issuer']})")
-
-            # 4. Search Catalog
-            console.print("\n[bold]4. Testing search queries...[/bold]")
-            results_by_query = search_catalog(query="TUCluj", db_path=db_path)
-            assert len(results_by_query) >= 1, "Failed to search by issuer keyword"
-
-            results_by_cat = search_catalog(category="University", db_path=db_path)
-            assert len(results_by_cat) >= 1, "Failed to search by category"
-
-            results_empty = search_catalog(query="NonExistentTermXYZ", db_path=db_path)
-            assert len(results_empty) == 0, "Expected zero results for non-matching term"
-
-            console.print(f"  [green]Search query 'TUCluj': {len(results_by_query)} hit(s)[/green]")
-            console.print(f"  [green]Search category 'University': {len(results_by_cat)} hit(s)[/green]")
-
-            console.print("\n[bold green]✓ Milestone 4 Complete: Document Catalog verified![/bold green]\n")
-            return 0
-
-        except Exception as e:
-            console.print(f"\n[bold red]✕ Test failed:[/bold red] {e}\n")
-            return 1
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+def test_catalog_document_and_search(tmp_path: Path, metadata: DocumentMetadata) -> None:
+    db_path = tmp_path / "state.db"
+    document_hash = "a" * 64
+
+    init_catalog(db_path)
+    assert not is_document_cataloged(document_hash, db_path)
+
+    catalog_document(
+        sha256=document_hash,
+        original_filename="transcript_semester_1.pdf",
+        metadata=metadata,
+        archive_path=tmp_path / metadata.canonical_filename,
+        extraction_method="digital",
+        db_path=db_path,
+    )
+
+    assert is_document_cataloged(document_hash, db_path)
+    record = get_catalog_entry_by_hash(document_hash, db_path)
+    assert record is not None
+    assert record["issuer"] == "TUClujNapoca"
+    assert record["category"] == "University"
+    assert len(search_catalog(query="TUCluj", db_path=db_path)) == 1
+    assert len(search_catalog(category="University", db_path=db_path)) == 1
+    assert search_catalog(query="NonExistentTermXYZ", db_path=db_path) == []
+
+
+def test_catalog_update_preserves_created_at(
+    tmp_path: Path, metadata: DocumentMetadata
+) -> None:
+    db_path = tmp_path / "state.db"
+    document_hash = "b" * 64
+    init_catalog(db_path)
+
+    catalog_document(
+        document_hash,
+        "original.pdf",
+        metadata,
+        tmp_path / "first.pdf",
+        "digital",
+        db_path,
+    )
+    with get_catalog_connection(db_path) as connection:
+        created_at = connection.execute(
+            "SELECT created_at FROM documents WHERE sha256 = ?", (document_hash,)
+        ).fetchone()[0]
+
+    updated_metadata = metadata.model_copy(update={"issuer": "UpdatedIssuer"})
+    catalog_document(
+        document_hash,
+        "updated.pdf",
+        updated_metadata,
+        tmp_path / "second.pdf",
+        "ocr",
+        db_path,
+    )
+
+    record = get_catalog_entry_by_hash(document_hash, db_path)
+    assert record is not None
+    assert record["issuer"] == "UpdatedIssuer"
+    assert record["created_at"] == created_at
+
+
+def test_search_treats_like_metacharacters_literally(
+    tmp_path: Path, metadata: DocumentMetadata
+) -> None:
+    db_path = tmp_path / "state.db"
+    init_catalog(db_path)
+    catalog_document(
+        "c" * 64,
+        "report_2024.pdf",
+        metadata,
+        tmp_path / "report_2024.pdf",
+        "digital",
+        db_path,
+    )
+
+    assert search_catalog(query="%", db_path=db_path) == []
+    assert len(search_catalog(query="report_", db_path=db_path)) == 1
+
+
+def test_relocate_file_catalogs_and_rejects_duplicate(
+    tmp_path: Path, metadata: DocumentMetadata, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    archive_dir = tmp_path / "archive"
+    db_path = tmp_path / "state.db"
+    source_path = tmp_path / "incoming.pdf"
+    source_path.write_bytes(b"document contents")
+    monkeypatch.setattr(mover, "ARCHIVE_DIR", archive_dir)
+
+    archived_path = mover.relocate_file(source_path, metadata, db_path)
+
+    assert archived_path.exists()
+    assert not source_path.exists()
+    record = get_catalog_entry_by_hash(mover.calculate_sha256(archived_path), db_path)
+    assert record is not None
+    assert record["archive_path"] == str(archived_path)
+
+    duplicate_path = tmp_path / "duplicate.pdf"
+    duplicate_path.write_bytes(b"document contents")
+    with pytest.raises(FileExistsError):
+        mover.relocate_file(duplicate_path, metadata, db_path)
+    assert duplicate_path.exists()
