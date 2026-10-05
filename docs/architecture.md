@@ -48,7 +48,7 @@ DocGraph/
 ├── src/
 │   ├── __init__.py
 │   ├── config.py                  # Storage paths, Ollama models, and constants
-│   ├── db.py                      # SQLite state management and deduplication
+│   ├── catalog.py                 # SQLite catalog and hash deduplication
 │   ├── extractor.py               # PyMuPDF digital parser + Tesseract OCR fallback
 │   ├── classifier.py              # Ollama structured JSON extractor
 │   ├── mover.py                   # Atomic file rename and directory dispatch
@@ -72,7 +72,7 @@ To guarantee file integrity, files follow an atomic lifecycle:
 [Step 1: Ingestion Guard]
   ├─ Check file is not active/locked
   ├─ Calculate SHA-256
-  └─ Query SQLite: If hash exists -> Log duplicate & SKIP
+  └─ Query SQLite: If hash exists -> Log duplicate and SKIP
      │
      ▼
 [Step 2: Text Extraction]

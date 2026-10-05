@@ -4,6 +4,7 @@ Handles integrity-verified atomic file moves into categorized archive structures
 """
 
 import hashlib
+import logging
 import os
 import shutil
 import tempfile
@@ -12,6 +13,8 @@ from typing import Optional
 from src.config import ARCHIVE_DIR
 from src.classifier import DocumentMetadata
 from src.catalog import catalog_document, get_catalog_entry_by_hash, init_catalog
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_sha256(file_path: Path) -> str:
@@ -45,10 +48,15 @@ def relocate_file(
 
     init_catalog(db_path)
     original_hash = calculate_sha256(source_path)
-    if get_catalog_entry_by_hash(original_hash, db_path) is not None:
-        raise FileExistsError(
-            f"Document with SHA-256 {original_hash} is already cataloged"
+    existing_entry = get_catalog_entry_by_hash(original_hash, db_path)
+    if existing_entry is not None:
+        existing_archive_path = Path(existing_entry["archive_path"])
+        logger.info(
+            "Skipping duplicate document %s; already cataloged at %s",
+            source_path,
+            existing_archive_path,
         )
+        return existing_archive_path
 
     target_category_dir = (ARCHIVE_DIR / metadata.category).resolve()
     target_category_dir.mkdir(parents=True, exist_ok=True)

@@ -116,7 +116,7 @@ docgraph/
 ├── src/
 │   ├── __init__.py
 │   ├── config.py                               # Paths, model aliases, and thresholds
-│   ├── db.py                                   # SQLite schema, hash indexing, queries
+│   ├── catalog.py                              # SQLite schema, hash indexing, queries
 │   ├── extractor.py                            # PyMuPDF + Tesseract fallback logic
 │   ├── classifier.py                           # Ollama structured JSON prompt handler
 │   ├── mover.py                                # Atomic move, rename, and verification
@@ -146,7 +146,7 @@ To prevent file loss, sync loops, or indexing corruptions, files follow a strict
 
 1. **Deduplication & Lock Verification:**
    * Calculate file SHA-256 hash.
-   * Query `state.db`. If the hash exists, skip processing and output a notification.
+   * Query `state.db`. If the hash exists, log the duplicate, skip processing, and leave the inbox file in place.
    * Ensure write operations are closed before reading (prevents partial reads during large file copies).
 2. **Text Normalization:**
    * Run fast digital text extraction via `PyMuPDF`.

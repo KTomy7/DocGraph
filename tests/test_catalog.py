@@ -107,8 +107,11 @@ def test_search_treats_like_metacharacters_literally(
     assert len(search_catalog(query="report_", db_path=db_path)) == 1
 
 
-def test_relocate_file_catalogs_and_rejects_duplicate(
-    tmp_path: Path, metadata: DocumentMetadata, monkeypatch: pytest.MonkeyPatch
+def test_relocate_file_catalogs_and_skips_duplicate(
+    tmp_path: Path,
+    metadata: DocumentMetadata,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     archive_dir = tmp_path / "archive"
     db_path = tmp_path / "state.db"
@@ -126,6 +129,8 @@ def test_relocate_file_catalogs_and_rejects_duplicate(
 
     duplicate_path = tmp_path / "duplicate.pdf"
     duplicate_path.write_bytes(b"document contents")
-    with pytest.raises(FileExistsError):
-        mover.relocate_file(duplicate_path, metadata, db_path)
+    with caplog.at_level("INFO", logger="src.mover"):
+        duplicate_archive_path = mover.relocate_file(duplicate_path, metadata, db_path)
+    assert duplicate_archive_path == archived_path
     assert duplicate_path.exists()
+    assert "Skipping duplicate document" in caplog.text

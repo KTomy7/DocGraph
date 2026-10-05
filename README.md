@@ -77,7 +77,7 @@ python cli.py ingest
 ```
 DocGraph will process, classify, rename, and archive each document.
 Archived documents are recorded in the local SQLite catalog at `data/state.db`;
-files whose SHA-256 hash is already cataloged are rejected as duplicates.
+files whose SHA-256 hash is already cataloged are logged and skipped.
 
 #### Search by Keyword or Category
 Quickly find where a file is saved on disk:
