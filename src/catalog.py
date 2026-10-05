@@ -47,6 +47,7 @@ def init_catalog(db_path: Optional[Path] = None) -> None:
 
 def is_document_cataloged(sha256: str, db_path: Optional[Path] = None) -> bool:
     """Check if a document with this exact SHA-256 hash has already been registered."""
+    init_catalog(db_path)
     with get_catalog_connection(db_path) as conn:
         cursor = conn.execute("SELECT 1 FROM documents WHERE sha256 = ?", (sha256,))
         return cursor.fetchone() is not None
@@ -61,10 +62,11 @@ def catalog_document(
     db_path: Optional[Path] = None,
 ) -> None:
     """Register a newly processed document into the catalog."""
+    init_catalog(db_path)
     with get_catalog_connection(db_path) as conn:
         conn.execute(
             """
-            INSERT OR REPLACE INTO documents (
+            INSERT INTO documents (
                 sha256,
                 original_filename,
                 canonical_filename,
@@ -76,6 +78,15 @@ def catalog_document(
                 extraction_method,
                 created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(sha256) DO UPDATE SET
+                original_filename = excluded.original_filename,
+                canonical_filename = excluded.canonical_filename,
+                archive_path = excluded.archive_path,
+                category = excluded.category,
+                document_type = excluded.document_type,
+                issuer = excluded.issuer,
+                document_date = excluded.document_date,
+                extraction_method = excluded.extraction_method
             """,
             (
                 sha256,
@@ -102,6 +113,7 @@ def search_catalog(
     """
     Search indexed documents by category, issuer, type, or general keyword.
     """
+    init_catalog(db_path)
     with get_catalog_connection(db_path) as conn:
         sql = "SELECT * FROM documents WHERE 1=1"
         params: List[Any] = []
@@ -113,13 +125,16 @@ def search_catalog(
         if query:
             sql += """
                 AND (
-                    canonical_filename LIKE ? 
-                    OR issuer LIKE ? 
-                    OR document_type LIKE ?
-                    OR original_filename LIKE ?
+                    canonical_filename LIKE ? ESCAPE '!'
+                    OR issuer LIKE ? ESCAPE '!'
+                    OR document_type LIKE ? ESCAPE '!'
+                    OR original_filename LIKE ? ESCAPE '!'
                 )
             """
-            wildcard = f"%{query}%"
+            escaped_query = (
+                query.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+            )
+            wildcard = f"%{escaped_query}%"
             params.extend([wildcard, wildcard, wildcard, wildcard])
 
         sql += " ORDER BY document_date DESC, created_at DESC LIMIT ?"
@@ -133,6 +148,7 @@ def get_catalog_entry_by_hash(
     sha256: str, db_path: Optional[Path] = None
 ) -> Optional[Dict[str, Any]]:
     """Retrieve full catalog record for a specific hash."""
+    init_catalog(db_path)
     with get_catalog_connection(db_path) as conn:
         cursor = conn.execute("SELECT * FROM documents WHERE sha256 = ?", (sha256,))
         row = cursor.fetchone()
