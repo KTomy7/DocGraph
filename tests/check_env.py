@@ -20,7 +20,7 @@ from src.config import (
     OLLAMA_HOST,
     LLM_MODEL,
     EMBEDDING_MODEL,
-    VALID_CATEGORIES,
+    CORE_CATEGORIES,
     init_filesystem,
 )
 
@@ -81,10 +81,10 @@ def main() -> int:
     )
 
     # 2. Archive Subfolders
-    categories_exist = all((ARCHIVE_DIR / cat).exists() for cat in VALID_CATEGORIES)
+    categories_exist = all((ARCHIVE_DIR / cat).exists() for cat in CORE_CATEGORIES)
     table.add_row(
         "Archive Categories",
-        f"{len(VALID_CATEGORIES)} subfolders",
+        f"{len(CORE_CATEGORIES)} subfolders",
         "[green]Ready[/green]" if categories_exist else "[red]Incomplete[/red]",
     )
 
