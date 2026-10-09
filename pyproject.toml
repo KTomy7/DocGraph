@@ -27,7 +27,8 @@ dev = [
     "pylint",
     "pytest",
     "pytest-cov",
-    "pytest-mock"
+    "pytest-mock",
+    "requests",
 ]
 
 [tool.coverage.run]

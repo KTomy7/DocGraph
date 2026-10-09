@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   coverage-guard:
@@ -45,37 +44,25 @@ jobs:
           pip install pylint
           pylint src/ tests/ --disable=C,R,redefined-outer-name
           
-      - name: Run Test Suite & Generate Coverage
+      - name: Run Test Suite & Enforce 80% Coverage Threshold & Generate Coverage
         run: |
           pytest -m "not integration" \
             --cov=src \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
             --cov-report=html:coverage_html \
+            --cov-fail-under=80 \
             tests/
-
-      - name: Enforce 80% Coverage Threshold
-        run: |
-          pytest -m "not integration" --cov=src --cov-fail-under=80 tests/
 
       - name: Generate GitHub Job Summary
         if: always()
         run: |
           echo "### 📊 DocGraph Coverage Summary" >> $GITHUB_STEP_SUMMARY
-          if [ -f coverage.xml ]; then
-            TOTAL_COV=$(python -c '
-          import xml.etree.ElementTree as ET
-          try:
-              tree = ET.parse("coverage.xml")
-              root = tree.getroot()
-              rate = float(root.attrib.get("line-rate", 0)) * 100
-              print(f"{rate:.2f}%")
-          except Exception:
-              print("N/A")
-          ')
+          if [ -s coverage.xml ]; then
+            TOTAL_COV=$(python -c "import xml.etree.ElementTree as ET; root = ET.parse('coverage.xml').getroot(); print(f\"{float(root.attrib.get('line-rate', 0)) * 100:.2f}%\")")
             echo "- **Total Line Coverage**: \`$TOTAL_COV\`" >> $GITHUB_STEP_SUMMARY
             echo "- **Enforced Threshold**: \`80.00%\`" >> $GITHUB_STEP_SUMMARY
-            echo "- **Status**: Quality gate evaluated successfully." >> $GITHUB_STEP_SUMMARY
+            echo "- **Job Status**: \`${{ job.status }}\`" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ Coverage file not found." >> $GITHUB_STEP_SUMMARY
           fi
@@ -86,4 +73,5 @@ jobs:
         with:
           name: docgraph-coverage-report
           path: coverage_html/
+          if-no-files-found: ignore
           retention-days: 14

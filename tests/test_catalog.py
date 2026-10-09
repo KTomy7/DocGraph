@@ -7,22 +7,18 @@ from src.catalog import (
     is_document_cataloged,
     search_catalog,
     get_catalog_entry_by_hash,
-    get_catalog_connection,
 )
 from src.classifier import DocumentMetadata
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    init_catalog()
-    test_hash = "mock_hash_1234567890"
-    yield test_hash
-    with get_catalog_connection() as conn:
-        conn.execute("DELETE FROM documents WHERE sha256 = ?", (test_hash,))
-        conn.commit()
+@pytest.fixture
+def catalog_db(tmp_path):
+    db_path = tmp_path / "catalog.db"
+    assert init_catalog(db_path) is True
+    return db_path
 
-def test_catalog_lifecycle(tmp_path, clean_db):
-    test_hash = clean_db
-    assert not is_document_cataloged(test_hash)
+def test_catalog_lifecycle(tmp_path, catalog_db):
+    test_hash = "mock_hash_1234567890"
+    assert not is_document_cataloged(test_hash, db_path=catalog_db)
 
     metadata = DocumentMetadata(
         category="University",
@@ -39,24 +35,26 @@ def test_catalog_lifecycle(tmp_path, clean_db):
         metadata=metadata,
         archive_path=fake_target,
         extraction_method="digital",
+        db_path=catalog_db,
     )
 
-    assert is_document_cataloged(test_hash)
-    record = get_catalog_entry_by_hash(test_hash)
+    assert is_document_cataloged(test_hash, db_path=catalog_db)
+    record = get_catalog_entry_by_hash(test_hash, db_path=catalog_db)
     assert record["issuer"] == "TUClujNapoca"
     assert record["category"] == "University"
 
-    assert len(search_catalog(query="TUCluj")) >= 1
-    assert len(search_catalog(category="University")) >= 1
-    assert len(search_catalog(query="UnknownXYZ")) == 0
+    assert len(search_catalog(query="TUCluj", db_path=catalog_db)) == 1
+    assert len(search_catalog(category="University", db_path=catalog_db)) == 1
+    assert search_catalog(query="UnknownXYZ", db_path=catalog_db) == []
 
 
-def test_init_catalog_reports_success(tmp_path):
-    assert init_catalog(tmp_path / "catalog.db") is True
+def test_init_catalog_reports_success(catalog_db):
+    assert catalog_db.exists()
 
 
-def test_init_catalog_reports_failure(tmp_path):
-    database_directory = tmp_path / "catalog.db"
+def test_init_catalog_reports_failure(catalog_db):
+    database_directory = catalog_db
+    database_directory.unlink()
     database_directory.mkdir()
 
     assert init_catalog(database_directory) is False

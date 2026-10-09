@@ -64,7 +64,7 @@ def doctor():
     console.print(f"Ollama connectivity: {'[green]OK[/green]' if ollama_ok else '[red]FAIL[/red]'}")
     console.print(f"Tesseract OCR: {'[green]OK[/green]' if tesseract_ok else '[red]FAIL[/red]'}")
 
-    if filesystem_ok and catalog_ok:
+    if filesystem_ok and catalog_ok and ollama_ok and tesseract_ok:
         console.print("\n[bold green]All systems operational.[/bold green]")
         raise typer.Exit(code=0)
     else:
