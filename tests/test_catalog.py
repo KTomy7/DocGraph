@@ -50,4 +50,15 @@ def test_catalog_lifecycle(tmp_path, clean_db):
     assert len(search_catalog(query="TUCluj")) >= 1
     assert len(search_catalog(category="University")) >= 1
     assert len(search_catalog(query="UnknownXYZ")) == 0
+
+
+def test_init_catalog_reports_success(tmp_path):
+    assert init_catalog(tmp_path / "catalog.db") is True
+
+
+def test_init_catalog_reports_failure(tmp_path):
+    database_directory = tmp_path / "catalog.db"
+    database_directory.mkdir()
+
+    assert init_catalog(database_directory) is False
     
