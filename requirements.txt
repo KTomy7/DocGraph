@@ -1,20 +1,22 @@
 # CLI & Terminal UI
-typer>=0.12.0
-rich>=13.7.0
+typer>=0.27.2
+rich>=15.0.0
 
 # PDF & Text Processing
-pymupdf>=1.24.0
-pytesseract>=0.3.10
-Pillow>=10.3.0
+pymupdf>=1.28.2
+pytesseract>=0.3.13
+Pillow>=12.3.0
 
 # LLM, Structured Extraction & Graph RAG
-ollama>=0.3.0
-pydantic>=2.7.0
-lightrag-hku>=1.0.0
-networkx>=3.2.0
+ollama>=0.6.3
+pydantic>=2.13.5
+lightrag-hku>=1.5.7
+networkx>=3.7
 
 # Utilities
-python-dotenv>=1.0.0
+python-dotenv>=1.2.4
 
 # Testing
-pytest>=8.0.0
+pytest>=9.1.1
+pytest-cov>=7.1.0
+pytest-mock>=3.16.0

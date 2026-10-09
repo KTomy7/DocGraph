@@ -1,26 +1,19 @@
-"""
-DocGraph - Environment Health Check (Milestone 1 Verification)
-"""
+"""DocGraph environment health checks."""
 
-import sys
 import shutil
-from pathlib import Path
+
+import ollama
 from rich.console import Console
 from rich.table import Table
-import ollama
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config import (
-    INBOX_DIR,
     ARCHIVE_DIR,
+    CORE_CATEGORIES,
+    EMBEDDING_MODEL,
+    INBOX_DIR,
+    LLM_MODEL,
     RAG_DIR,
     OLLAMA_HOST,
-    LLM_MODEL,
-    EMBEDDING_MODEL,
-    VALID_CATEGORIES,
     init_filesystem,
 )
 
@@ -33,7 +26,6 @@ def verify_ollama() -> bool:
         client = ollama.Client(host=OLLAMA_HOST)
         models_response = client.list()
 
-        # Handle both ListResponse object and legacy dict structures
         models = getattr(models_response, "models", None)
         if models is None and isinstance(models_response, dict):
             models = models_response.get("models", [])
@@ -41,18 +33,19 @@ def verify_ollama() -> bool:
             models = []
 
         installed_models = []
-        for m in models:
-            if isinstance(m, dict):
-                installed_models.append(m.get("model", "") or m.get("name", ""))
+        for model in models:
+            if isinstance(model, dict):
+                installed_models.append(model.get("model", "") or model.get("name", ""))
             else:
-                installed_models.append(getattr(m, "model", "") or getattr(m, "name", ""))
+                installed_models.append(
+                    getattr(model, "model", "") or getattr(model, "name", "")
+                )
 
         has_llm = any(LLM_MODEL in name for name in installed_models)
         has_embed = any(EMBEDDING_MODEL in name for name in installed_models)
-
         return has_llm and has_embed
-    except Exception as e:
-        console.print(f"[bold red]Failed to connect to Ollama:[/bold red] {e}")
+    except Exception as error: # pylint: disable=broad-exception-caught
+        console.print(f"[bold red]Failed to connect to Ollama:[/bold red] {error}")
         return False
 
 
@@ -62,56 +55,53 @@ def verify_tesseract() -> bool:
 
 
 def main() -> int:
-    console.rule("[bold cyan]DocGraph - Milestone 1 Verification[/bold cyan]")
+    """Run all environment checks and return a process status code."""
+    console.rule("[bold cyan]DocGraph - Environment Verification[/bold cyan]")
 
-    # Explicitly ensure filesystem structure during check
-    init_filesystem()
+    filesystem_ok = init_filesystem()
+    dirs_exist = filesystem_ok and INBOX_DIR.exists() and ARCHIVE_DIR.exists() and RAG_DIR.exists()
+    categories_exist = filesystem_ok and all(
+        (ARCHIVE_DIR / category).exists() for category in CORE_CATEGORIES
+    )
+    tess_ok = verify_tesseract()
+    ollama_ok = verify_ollama()
 
     table = Table(title="System & Environment Status")
     table.add_column("Component", style="bold")
     table.add_column("Target / Path", style="dim")
     table.add_column("Status", justify="right")
-
-    # 1. Directory Structure
-    dirs_exist = INBOX_DIR.exists() and ARCHIVE_DIR.exists() and RAG_DIR.exists()
     table.add_row(
         "Filesystem Layout",
         str(INBOX_DIR.parent),
         "[green]Ready[/green]" if dirs_exist else "[red]Missing[/red]",
     )
-
-    # 2. Archive Subfolders
-    categories_exist = all((ARCHIVE_DIR / cat).exists() for cat in VALID_CATEGORIES)
     table.add_row(
         "Archive Categories",
-        f"{len(VALID_CATEGORIES)} subfolders",
+        f"{len(CORE_CATEGORIES)} subfolders",
         "[green]Ready[/green]" if categories_exist else "[red]Incomplete[/red]",
     )
-
-    # 3. Tesseract Binary
-    tess_ok = verify_tesseract()
     table.add_row(
         "Tesseract OCR",
         shutil.which("tesseract") or "Not found",
-        "[green]Installed[/green]" if tess_ok else "[yellow]Missing (brew install tesseract)[/yellow]",
+        "[green]Installed[/green]"
+        if tess_ok
+        else "[yellow]Missing (brew install tesseract)[/yellow]",
     )
-
-    # 4. Ollama Connectivity & Models
-    ollama_ok = verify_ollama()
     table.add_row(
         "Ollama Models",
         f"{LLM_MODEL}, {EMBEDDING_MODEL}",
-        "[green]Connected & Pulled[/green]" if ollama_ok else "[red]Missing / Not Running[/red]",
+        "[green]Connected & Pulled[/green]"
+        if ollama_ok
+        else "[red]Missing / Not Running[/red]",
     )
-
     console.print(table)
 
     if dirs_exist and categories_exist and tess_ok and ollama_ok:
-        console.print("\n[bold green]✓ Milestone 1 Complete: Environment is ready for Milestone 2![/bold green]\n")
+        console.print("\n[bold green]✓ Environment is ready.[/bold green]\n")
         return 0
-    else:
-        console.print("\n[bold yellow]! Please fix the items above before proceeding.[/bold yellow]\n")
-        return 1
+
+    console.print("\n[bold yellow]! Please fix the items above before proceeding.[/bold yellow]\n")
+    return 1
 
 
 if __name__ == "__main__":

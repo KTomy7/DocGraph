@@ -21,28 +21,32 @@ def get_catalog_connection(db_path: Optional[Path] = None) -> sqlite3.Connection
     return conn
 
 
-def init_catalog(db_path: Optional[Path] = None) -> None:
-    """Initializes the document catalog table and indexes if they do not exist."""
-    with get_catalog_connection(db_path) as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS documents (
-                sha256 TEXT PRIMARY KEY,
-                original_filename TEXT NOT NULL,
-                canonical_filename TEXT NOT NULL,
-                archive_path TEXT NOT NULL,
-                category TEXT NOT NULL,
-                document_type TEXT NOT NULL,
-                issuer TEXT NOT NULL,
-                document_date TEXT,
-                extraction_method TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            );
-        """)
-        # Indexes for fast lookup
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_category ON documents(category);")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_issuer ON documents(issuer);")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_doc_date ON documents(document_date);")
-        conn.commit()
+def init_catalog(db_path: Optional[Path] = None) -> bool:
+    """Initialize the catalog and return whether setup completed successfully."""
+    try:
+        with get_catalog_connection(db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS documents (
+                    sha256 TEXT PRIMARY KEY,
+                    original_filename TEXT NOT NULL,
+                    canonical_filename TEXT NOT NULL,
+                    archive_path TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    document_type TEXT NOT NULL,
+                    issuer TEXT NOT NULL,
+                    document_date TEXT,
+                    extraction_method TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+            """)
+            # Indexes for fast lookup
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_category ON documents(category);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_issuer ON documents(issuer);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_doc_date ON documents(document_date);")
+            conn.commit()
+    except (OSError, sqlite3.Error):
+        return False
+    return True
 
 
 def is_document_cataloged(sha256: str, db_path: Optional[Path] = None) -> bool:

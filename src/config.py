@@ -44,14 +44,19 @@ MIN_DIGITAL_TEXT_CHARS = 50  # Fallback to Tesseract if fewer characters extract
 TESSERACT_LANGUAGES = "eng+ron+hun+spa"
 
 
-def init_filesystem() -> None:
-    """Ensure all required folders exist on startup."""
-    INBOX_DIR.mkdir(parents=True, exist_ok=True)
-    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
-    RAG_DIR.mkdir(parents=True, exist_ok=True)
+def init_filesystem() -> bool:
+    """Ensure all required folders exist and return whether setup succeeded."""
+    try:
+        INBOX_DIR.mkdir(parents=True, exist_ok=True)
+        ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+        RAG_DIR.mkdir(parents=True, exist_ok=True)
 
-    for category in CORE_CATEGORIES:
-        (ARCHIVE_DIR / category).mkdir(parents=True, exist_ok=True)
+        for category in CORE_CATEGORIES:
+            (ARCHIVE_DIR / category).mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return False
+    return True
+
 
 def get_active_categories() -> List[str]:
     """
@@ -64,4 +69,3 @@ def get_active_categories() -> List[str]:
             if item.is_dir() and not item.name.startswith("."):
                 categories.add(item.name)
     return sorted(list(categories))
-

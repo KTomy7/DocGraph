@@ -1,0 +1,77 @@
+name: Coverage Guard
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  coverage-guard:
+    name: Test & Coverage Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install System Dependencies (Tesseract OCR & Language Packs)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            tesseract-ocr \
+            tesseract-ocr-ron \
+            tesseract-ocr-hun \
+            tesseract-ocr-spa
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-mock
+
+      - name: Lint with pylint
+        run: |
+          pip install pylint
+          pylint src/ tests/ --disable=C,R,redefined-outer-name
+          
+      - name: Run Test Suite & Enforce 80% Coverage Threshold & Generate Coverage
+        run: |
+          pytest -m "not integration" \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-report=html:coverage_html \
+            --cov-fail-under=80 \
+            tests/
+
+      - name: Generate GitHub Job Summary
+        if: always()
+        run: |
+          echo "### 📊 DocGraph Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          if [ -s coverage.xml ]; then
+            TOTAL_COV=$(python -c "import xml.etree.ElementTree as ET; root = ET.parse('coverage.xml').getroot(); print(f\"{float(root.attrib.get('line-rate', 0)) * 100:.2f}%\")")
+            echo "- **Total Line Coverage**: \`$TOTAL_COV\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **Enforced Threshold**: \`80.00%\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **Job Status**: \`${{ job.status }}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Coverage file not found." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload HTML Coverage Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docgraph-coverage-report
+          path: coverage_html/
+          if-no-files-found: ignore
+          retention-days: 14
