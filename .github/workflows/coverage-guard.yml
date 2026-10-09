@@ -43,7 +43,7 @@ jobs:
       - name: Lint with pylint
         run: |
           pip install pylint
-          pylint src/ tests/ --disable=C,R›
+          pylint src/ tests/ --disable=C,R,redefined-outer-name
           
       - name: Run Test Suite & Generate Coverage
         run: |

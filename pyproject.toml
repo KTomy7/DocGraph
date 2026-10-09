@@ -25,3 +25,11 @@ docgraph = "cli:app"
 [tool.setuptools]
 py-modules = ["cli"]
 packages = ["src"]
+
+[project.optional-dependencies]
+dev = [
+    "pylint",
+    "pytest",
+    "pytest-cov",
+    "pytest-mock"
+]
