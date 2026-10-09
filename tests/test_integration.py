@@ -2,7 +2,6 @@
 
 import pytest
 import requests
-from pathlib import Path
 from src.classifier import classify_document, DocumentMetadata
 from src.mover import relocate_file, calculate_sha256
 from src.catalog import get_catalog_entry_by_hash
@@ -18,7 +17,7 @@ def is_ollama_running():
         base_url = OLLAMA_HOST.split("/api")[0] if "/api" in OLLAMA_HOST else OLLAMA_HOST
         response = requests.get(base_url, timeout=2)
         return response.status_code == 200
-    except Exception:
+    except requests.exceptions.RequestException:
         return False
 
 @pytest.mark.skipif(not is_ollama_running(), reason="Local Ollama daemon is not running.")
@@ -33,7 +32,7 @@ def test_full_pipeline_live(tmp_path, monkeypatch):
     monkeypatch.setattr("src.mover.ARCHIVE_DIR", test_archive)
     try:
         monkeypatch.setattr("src.config.ARCHIVE_DIR", test_archive)
-    except Exception:
+    except AttributeError:
         pass
 
     # 2. Create a mock source document

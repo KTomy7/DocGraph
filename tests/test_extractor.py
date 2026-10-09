@@ -1,7 +1,5 @@
 """Unit tests for text extraction (digital PDF & OCR fallback)."""
 
-import pytest
-from pathlib import Path
 from src.extractor import extract_text, clean_text
 
 def test_clean_text():

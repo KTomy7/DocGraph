@@ -44,7 +44,7 @@ def verify_ollama() -> bool:
         has_llm = any(LLM_MODEL in name for name in installed_models)
         has_embed = any(EMBEDDING_MODEL in name for name in installed_models)
         return has_llm and has_embed
-    except Exception as error:
+    except Exception as error: # pylint: disable=broad-exception-caught
         console.print(f"[bold red]Failed to connect to Ollama:[/bold red] {error}")
         return False
 

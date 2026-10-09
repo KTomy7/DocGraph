@@ -1,7 +1,6 @@
 """Unit tests for the SQLite document catalog & deduplication layer."""
 
 import pytest
-from pathlib import Path
 from src.catalog import (
     init_catalog,
     catalog_document,
