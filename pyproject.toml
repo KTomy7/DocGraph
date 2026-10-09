@@ -22,10 +22,6 @@ dependencies = [
 [project.scripts]
 docgraph = "cli:app"
 
-[tool.setuptools]
-py-modules = ["cli"]
-packages = ["src"]
-
 [project.optional-dependencies]
 dev = [
     "pylint",
@@ -33,3 +29,12 @@ dev = [
     "pytest-cov",
     "pytest-mock"
 ]
+
+[tool.coverage.run]
+omit = [
+    "src/check_env.py",
+]
+
+[tool.setuptools]
+py-modules = ["cli"]
+packages = ["src"]

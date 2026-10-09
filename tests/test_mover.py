@@ -13,7 +13,7 @@ def mover_setup(tmp_path, monkeypatch):
     return test_archive, test_db
 
 def test_relocate_file_atomic_success(tmp_path, mover_setup):
-    test_db = mover_setup
+    _, test_db = mover_setup
     
     source_file = tmp_path / "inbox_doc.pdf"
     source_file.write_bytes(b"%PDF-1.4\nMock file content payload")
@@ -35,7 +35,7 @@ def test_relocate_file_atomic_success(tmp_path, mover_setup):
     assert not source_file.exists() # Source should be unlinked
 
 def test_relocate_file_duplicate_skip(tmp_path, mover_setup):
-    test_db = mover_setup
+    _, test_db = mover_setup
     
     source_file = tmp_path / "inbox_doc.pdf"
     source_file.write_bytes(b"%PDF-1.4\nDuplicate payload")
