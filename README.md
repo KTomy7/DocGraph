@@ -67,13 +67,14 @@ pip install -r requirements.txt
 #### Check System Status
 Make sure Ollama is reachable and your folders are ready:
 ```bash
-python cli.py doctor
+docgraph doctor
 ```
 
 #### Organize Files (Ingest)
 Place your PDFs into `data/00_inbox/` and run:
 ```bash
-python cli.py ingest
+docgraph init
+docgraph ingest
 ```
 DocGraph will process, classify, rename, and archive each document.
 Archived documents are recorded in the local SQLite catalog at `data/state.db`;
@@ -82,15 +83,15 @@ files whose SHA-256 hash is already cataloged are logged and skipped.
 #### Search by Keyword or Category
 Quickly find where a file is saved on disk:
 ```bash
-python cli.py search --query "lease" --open
+docgraph search --query "lease" --open
 ```
 *(The `--open` flag opens the document directly in your default PDF viewer).*
 
 #### Ask Questions (AI Retrieval)
 Ask multi-hop or detail questions across your stored documents:
 ```bash
-python cli.py ask "When does my passport expire?"
-python cli.py ask "What is my car insurance policy number?"
+docgraph ask "When does my passport expire?"
+docgraph ask "What is my car insurance policy number?"
 ```
 
 ---

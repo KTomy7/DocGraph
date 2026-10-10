@@ -195,6 +195,7 @@ When querying the assistant, the engine routes requests through two complementar
 python cli.py doctor
 
 # Ingest and organize all pending files in the inbox
+python cli.py init
 python cli.py ingest
 
 # Search document records by keyword or category

@@ -143,14 +143,15 @@ python cli.py ask "What was my deposit for the apartment in Cartagena?"
 
 ```bash
 # Process all pending documents in data/00_inbox
-python cli.py ingest
+docgraph init
+docgraph ingest
 
 # Ask a contextual / relational question across documents
-python cli.py ask "When does my car insurance expire?"
+docgraph ask "When does my car insurance expire?"
 
 # Search document metadata directly
-python cli.py search --query "passport" --open
+docgraph search --query "passport" --open
 
 # Inspect system status: Ollama connectivity, index stats, and file counts
-python cli.py doctor
+docgraph doctor
 ```
