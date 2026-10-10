@@ -6,6 +6,7 @@ from src.classifier import classify_document, DocumentMetadata
 from src.mover import relocate_file, calculate_sha256
 from src.catalog import get_catalog_entry_by_hash
 from src.config import OLLAMA_HOST
+from src.rag_engine import index_document, query_graph
 
 # Apply the integration marker to every test in this file automatically
 pytestmark = pytest.mark.integration
@@ -23,15 +24,18 @@ def is_ollama_running():
 @pytest.mark.skipif(not is_ollama_running(), reason="Local Ollama daemon is not running.")
 def test_full_pipeline_live(tmp_path, monkeypatch):
     """
-    Tests the complete pipeline: Live LLM Classification -> Atomic Move -> Database Cataloging.
+    Tests the complete pipeline: Live LLM Classification -> Atomic Move -> Database Cataloging -> KG Indexing.
     """
-    # 1. Setup isolated file system and database
+    # 1. Setup isolated file system, database, and RAG workspace
     test_archive = tmp_path / "archive"
     test_db = tmp_path / "integration_state.db"
+    test_rag_dir = tmp_path / "rag_workspace"
     
     monkeypatch.setattr("src.mover.ARCHIVE_DIR", test_archive)
+    monkeypatch.setattr("src.rag_engine.RAG_DIR", test_rag_dir)
     try:
         monkeypatch.setattr("src.config.ARCHIVE_DIR", test_archive)
+        monkeypatch.setattr("src.config.RAG_DIR", test_rag_dir)
     except AttributeError:
         pass
 
@@ -80,4 +84,16 @@ def test_full_pipeline_live(tmp_path, monkeypatch):
     assert db_entry is not None, "Document was not cataloged in the SQLite database."
     assert db_entry["category"] == "Housing"
     assert db_entry["extraction_method"] == "digital"
+    
+    # 9. EXECUTE LIVE KNOWLEDGE GRAPH INDEXING
+    index_document(document_text, metadata.canonical_filename)
+    
+    # 10. VERIFY GRAPH RETRIEVAL (Querying the indexed data)
+    # We use "local" mode for speed in the test to query entity relationships
+    answer = query_graph("Who is the landlord for apartment 4B?", mode="local")
+    
+    assert isinstance(answer, str), "Knowledge graph failed to return a string response."
+    assert len(answer) > 0, "Knowledge graph returned an empty response."
+    # The LLM should reasonably extract and return the landlord's name from our injected payload
+    assert "RealEstateCorp" in answer or "Real Estate Corp" in answer, f"LLM did not identify the landlord. Answer was: {answer}"
     
