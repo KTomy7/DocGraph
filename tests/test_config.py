@@ -24,3 +24,14 @@ def test_init_filesystem_reports_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RAG_DIR", tmp_path / "rag")
 
     assert config.init_filesystem() is False
+
+
+def test_filesystem_readiness_check(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "INBOX_DIR", tmp_path / "00_inbox")
+    monkeypatch.setattr(config, "ARCHIVE_DIR", tmp_path / "archive")
+    monkeypatch.setattr(config, "RAG_DIR", tmp_path / "rag")
+    monkeypatch.setattr(config, "CORE_CATEGORIES", ["Identity"])
+
+    assert config.is_filesystem_initialized() is False
+    assert config.init_filesystem() is True
+    assert config.is_filesystem_initialized() is True

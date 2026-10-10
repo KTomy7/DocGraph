@@ -58,6 +58,13 @@ def init_filesystem() -> bool:
     return True
 
 
+def is_filesystem_initialized() -> bool:
+    """Return whether the required DocGraph directories already exist."""
+    required_directories = [INBOX_DIR, ARCHIVE_DIR, RAG_DIR]
+    required_directories.extend(ARCHIVE_DIR / category for category in CORE_CATEGORIES)
+    return all(directory.is_dir() for directory in required_directories)
+
+
 def get_active_categories() -> List[str]:
     """
     Returns core categories plus any established folders in the archive.

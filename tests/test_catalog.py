@@ -3,6 +3,7 @@
 import pytest
 from src.catalog import (
     init_catalog,
+    is_catalog_initialized,
     catalog_document,
     is_document_cataloged,
     search_catalog,
@@ -58,4 +59,12 @@ def test_init_catalog_reports_failure(catalog_db):
     database_directory.mkdir()
 
     assert init_catalog(database_directory) is False
+
+
+def test_catalog_readiness_check(tmp_path):
+    database_path = tmp_path / "catalog.db"
+
+    assert is_catalog_initialized(database_path) is False
+    assert init_catalog(database_path) is True
+    assert is_catalog_initialized(database_path) is True
     

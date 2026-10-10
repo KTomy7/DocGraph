@@ -49,6 +49,36 @@ def init_catalog(db_path: Optional[Path] = None) -> bool:
     return True
 
 
+def is_catalog_initialized(db_path: Optional[Path] = None) -> bool:
+    """Return whether the catalog database has the expected schema."""
+    path = db_path or STATE_DB_PATH
+    if not path.is_file():
+        return False
+
+    try:
+        with sqlite3.connect(path) as conn:
+            columns = {
+                row[1]
+                for row in conn.execute("PRAGMA table_info(documents)").fetchall()
+            }
+    except sqlite3.Error:
+        return False
+
+    required_columns = {
+        "sha256",
+        "original_filename",
+        "canonical_filename",
+        "archive_path",
+        "category",
+        "document_type",
+        "issuer",
+        "document_date",
+        "extraction_method",
+        "created_at",
+    }
+    return required_columns.issubset(columns)
+
+
 def is_document_cataloged(sha256: str, db_path: Optional[Path] = None) -> bool:
     """Check if a document with this exact SHA-256 hash has already been registered."""
     init_catalog(db_path)
