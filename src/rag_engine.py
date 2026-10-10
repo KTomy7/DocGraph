@@ -63,6 +63,21 @@ def get_rag_instance() -> LightRAG:
     return LightRAG(
         working_dir=str(RAG_DIR),
         llm_model_func=local_llm,
+
+        # 1. Force sequential processing to prevent local GPU queue starvation
+        llm_model_max_async=1,
+        
+        # 2. Extend the LLM timeout from 240s to 1200s (20 minutes)
+        llm_model_kwargs={"timeout": 1200},
+        
+        # 3. Override LightRAG's hardcoded 480s internal worker timeouts
+        addon_params={
+            "extract": {
+                "timeout": 1200,
+                "max_async": 1
+            }
+        },
+        
         embedding_func=EmbeddingFunc(
             embedding_dim=768,  # nomic-embed-text dimension
             max_token_size=8192,
