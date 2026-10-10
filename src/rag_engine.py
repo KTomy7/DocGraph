@@ -5,7 +5,7 @@ Manages entity extraction, relationship mapping, and multi-hop reasoning.
 
 import asyncio
 import logging
-import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 from lightrag import LightRAG, QueryParam
 from lightrag.llm.ollama import ollama_model_complete, ollama_embed
@@ -23,22 +23,9 @@ def _run_async_safely(awaitable):
     except RuntimeError:
         return asyncio.run(awaitable)
 
-    result = {}
-    error = {}
-
-    def runner():
-        try:
-            result["value"] = asyncio.run(awaitable)
-        except BaseException as exc:  # pragma: no cover - executed only in nested-loop scenarios
-            error["value"] = exc
-
-    thread = threading.Thread(target=runner, daemon=True)
-    thread.start()
-    thread.join()
-
-    if "value" in error:
-        raise error["value"]
-    return result["value"]
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(asyncio.run, awaitable)
+        return future.result()
 
 
 def get_rag_instance() -> LightRAG:
@@ -56,11 +43,11 @@ def get_rag_instance() -> LightRAG:
         prompt: str,
         system_prompt: Optional[str] = None,
         history_messages: Optional[list] = None,
-        **kwargs
+        **kwargs,
     ) -> str:
         if history_messages is None:
             history_messages = []
-            
+
         # LightRAG supplies the model through hashing_kv.global_config.
         # Remove the legacy model key so it cannot conflict with that config.
         kwargs.pop("model", None)
