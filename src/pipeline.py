@@ -3,12 +3,15 @@ DocGraph - Core Processing Pipeline
 Orchestrates text extraction, LLM classification, atomic relocation, and cataloging.
 """
 
+import logging
 from pathlib import Path
 from typing import Tuple
 from src.extractor import extract_text
 from src.classifier import classify_document, DocumentMetadata
 from src.mover import relocate_file
 from src.rag_engine import index_document
+
+logger = logging.getLogger(__name__)
 
 
 def process_document(file_path: Path) -> Tuple[Path, DocumentMetadata, str]:
@@ -38,7 +41,13 @@ def process_document(file_path: Path) -> Tuple[Path, DocumentMetadata, str]:
         extraction_method=ext_method
     )
     
-    # 4. Knowledge Graph Indexing
-    index_document(text, metadata.canonical_filename)
+    # 4. Knowledge Graph Indexing (best-effort; do not block document ingestion)
+    try:
+        index_document(text, metadata.canonical_filename)
+    except Exception:
+        logger.exception(
+            "Knowledge graph indexing failed for %s; continuing without graph metadata.",
+            file_path,
+        )
     
     return dest_path, metadata, ext_method
