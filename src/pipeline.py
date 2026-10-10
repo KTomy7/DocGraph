@@ -8,6 +8,7 @@ from typing import Tuple
 from src.extractor import extract_text
 from src.classifier import classify_document, DocumentMetadata
 from src.mover import relocate_file
+from src.rag_engine import index_document
 
 
 def process_document(file_path: Path) -> Tuple[Path, DocumentMetadata, str]:
@@ -30,11 +31,14 @@ def process_document(file_path: Path) -> Tuple[Path, DocumentMetadata, str]:
     # 2. Classify via LLM
     metadata = classify_document(text, file_path.name)
     
-    # 3. Relocate safely (this also handles cataloging internally)
+    # 3. Relocate & Catalog
     dest_path = relocate_file(
         source_path=file_path, 
         metadata=metadata, 
         extraction_method=ext_method
     )
+    
+    # 4. Knowledge Graph Indexing
+    index_document(text, metadata.canonical_filename)
     
     return dest_path, metadata, ext_method
