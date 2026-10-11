@@ -18,10 +18,10 @@ def open_file_in_default_viewer(file_path: str):
 
     try:
         if platform.system() == "Darwin":  # macOS
-            subprocess.run(["open", file_path])
+            subprocess.run(["open", file_path], check=True)
         elif platform.system() == "Windows":  # Windows
-            subprocess.run(["start", file_path], shell=True)
+            subprocess.run(["start", file_path], shell=True, check=True)
         else:  # Linux and other OSes
-            subprocess.run(["xdg-open", file_path])
+            subprocess.run(["xdg-open", file_path], check=True)
     except Exception as e:
-        raise RuntimeError(f"Failed to open file:[/red] {e}")
+        raise RuntimeError(f"Failed to open file: {e}") from e
