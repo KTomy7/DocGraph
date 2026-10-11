@@ -141,7 +141,6 @@ def catalog_document(
 def search_catalog(
     query: Optional[str] = None,
     category: Optional[str] = None,
-    limit: int = 50,
     db_path: Optional[Path] = None,
 ) -> List[Dict[str, Any]]:
     """
@@ -153,16 +152,16 @@ def search_catalog(
         params: List[Any] = []
 
         if category:
-            sql += " AND category = ?"
+            sql += " AND LOWER(category) = LOWER(?)"
             params.append(category)
 
         if query:
             sql += """
                 AND (
-                    canonical_filename LIKE ? ESCAPE '!'
-                    OR issuer LIKE ? ESCAPE '!'
-                    OR document_type LIKE ? ESCAPE '!'
-                    OR original_filename LIKE ? ESCAPE '!'
+                    LOWER(canonical_filename) LIKE ? ESCAPE '!'
+                    OR LOWER(issuer) LIKE ? ESCAPE '!'
+                    OR LOWER(document_type) LIKE ? ESCAPE '!'
+                    OR LOWER(original_filename) LIKE ? ESCAPE '!'
                 )
             """
             escaped_query = (
@@ -171,8 +170,7 @@ def search_catalog(
             wildcard = f"%{escaped_query}%"
             params.extend([wildcard, wildcard, wildcard, wildcard])
 
-        sql += " ORDER BY document_date DESC, created_at DESC LIMIT ?"
-        params.append(limit)
+        sql += " ORDER BY document_date DESC, created_at DESC"
 
         cursor = conn.execute(sql, params)
         return [dict(row) for row in cursor.fetchall()]

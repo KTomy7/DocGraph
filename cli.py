@@ -13,6 +13,7 @@ from src.pipeline import process_document
 from src.catalog import init_catalog, is_catalog_initialized, search_catalog
 from src.config import INBOX_DIR, init_filesystem, is_filesystem_initialized
 from src.check_env import verify_ollama, verify_tesseract
+from src.utils import open_file_in_default_viewer
 
 app = typer.Typer(
     name="docgraph",
@@ -112,6 +113,44 @@ def ingest():
             f"  [dim]Category:[/dim] {metadata.category} | [dim]Issuer:[/dim] {metadata.issuer} | [dim]Method:[/dim] {ext_method}\n"
             f"  [dim]Archived at:[/dim] {dest_path}\n"
         )
+
+
+@app.command()
+def search(
+    query: str = typer.Argument(None, help="Keyword to search in filename, issuer, or type"),
+    category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by specific category"),
+    open_file: Optional[bool] = typer.Option(False, "--open", "-o", help="Open the first matching document in the default PDF viewer"),
+):
+    """Search the document catalog."""
+    init_catalog()
+    results = search_catalog(query=query, category=category)
+
+    if not results:
+        console.print("[yellow]No matching documents found in the catalog.[/yellow]")
+        raise typer.Exit(code=0)
+
+    table = Table(title="DocGraph Catalog Search Results", show_header=True, header_style="bold magenta")
+    table.add_column("Date", style="dim", width=12)
+    table.add_column("Category", style="cyan")
+    table.add_column("Issuer", style="green")
+    table.add_column("Filename")
+    table.add_column("Archive Path", style="dim")
+
+    for row in results:
+        table.add_row(
+            row["document_date"] or "UNKNOWN",
+            row["category"],
+            row["issuer"],
+            row["canonical_filename"],
+            str(row["archive_path"]),
+        )
+
+    console.print(table)
+    console.print(f"\n[dim]Total results: {len(results)}[/dim]")
+
+    if open_file:
+        first_result = results[0]
+        open_file_in_default_viewer(first_result["archive_path"])
 
 
 if __name__ == "__main__":

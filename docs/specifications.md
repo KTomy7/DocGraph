@@ -176,7 +176,7 @@ To prevent file loss, sync loops, or indexing corruptions, files follow a strict
 When querying the assistant, the engine routes requests through two complementary layers:
 
 ### A. Metadata & Exact Path Search (`search`)
-* Designed for fast file retrieval by date, issuer, or category without running an LLM.
+* Designed for fast file retrieval by keyword, issuer, or category without running an LLM.
 * Queries `state.db` directly.
 * Supports an `--open` flag that launches the file immediately in the native macOS viewer (Preview.app).
 
@@ -192,18 +192,18 @@ When querying the assistant, the engine routes requests through two complementar
 
 ```bash
 # Check environment health, Ollama status, and models
-python cli.py doctor
+docgraph doctor
 
 # Ingest and organize all pending files in the inbox
-python cli.py init
-python cli.py ingest
+docgraph init
+docgraph ingest
 
 # Search document records by keyword or category
-python cli.py search --query "lease" --open
+docgraph search "lease" --open
 
 # Ask a contextual question using the Knowledge Graph
-python cli.py ask "When does my car insurance expire?"
-python cli.py ask "What was the deposit amount on my apartment in Cartagena?"
+docgraph ask "When does my car insurance expire?"
+docgraph ask "What was the deposit amount on my apartment in Cartagena?"
 ```
 
 ## 9. Apple iCloud Drive Migration Path

@@ -46,6 +46,9 @@ def test_catalog_lifecycle(tmp_path, catalog_db):
 
     assert len(search_catalog(query="TUCluj", db_path=catalog_db)) == 1
     assert len(search_catalog(category="University", db_path=catalog_db)) == 1
+    assert len(
+        search_catalog(query="Transcript", category="university", db_path=catalog_db)
+    ) == 1
     assert search_catalog(query="UnknownXYZ", db_path=catalog_db) == []
 
 

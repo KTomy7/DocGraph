@@ -83,7 +83,7 @@ files whose SHA-256 hash is already cataloged are logged and skipped.
 #### Search by Keyword or Category
 Quickly find where a file is saved on disk:
 ```bash
-docgraph search --query "lease" --open
+docgraph search "lease" --open
 ```
 *(The `--open` flag opens the document directly in your default PDF viewer).*
 

@@ -113,10 +113,10 @@ For finding physical files without invoking heavy LLM reasoning.
 - **Command:**
 
 ```bash
-python cli.py search --category Academic --year 2024
+python cli.py search "transcript" --category Academic --open
 ```
 
-- **Mechanism:** Direct SQLite query returning a Rich-formatted table of file paths, issuers, and dates. Includes an `--open` flag to launch the file directly in the system viewer (e.g., Preview on macOS).
+- **Mechanism:** Direct SQLite query returning a Rich-formatted table of file paths, issuers, and dates. The search text is a positional argument, and `--category` can be used as an optional filter. Includes an `--open` flag to launch the file directly in the system viewer (e.g., Preview on macOS).
 
 ### B. Relational Graph-RAG Query (`ask`)
 For answering multi-hop, contextual, or detail-oriented questions.
@@ -150,7 +150,7 @@ docgraph ingest
 docgraph ask "When does my car insurance expire?"
 
 # Search document metadata directly
-docgraph search --query "passport" --open
+docgraph search "passport" --open
 
 # Inspect system status: Ollama connectivity, index stats, and file counts
 docgraph doctor
