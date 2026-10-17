@@ -7,7 +7,14 @@ import typer
 from typing import Optional
 from rich.console import Console
 from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeRemainingColumn,
+)
 
 from src.pipeline import process_document
 from src.catalog import init_catalog, is_catalog_initialized, search_catalog
@@ -92,27 +99,50 @@ def ingest():
     console.print(f"Found {len(files_to_process)} document(s) to ingest.\n")
 
     # Ingestion Loop
-    for file_path in files_to_process:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            transient=True,
-        ) as progress:
-            progress.add_task(f"Processing [cyan]{file_path.name}[/cyan]...", total=None)
+    successful = 0
+    failed = 0
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeRemainingColumn(),
+        TextColumn("[green]✓ {task.fields[successful]}[/green]"),
+        TextColumn("[red]✗ {task.fields[failed]}[/red]"),
+    ) as progress:
+        task_id = progress.add_task(
+            "Processing documents...",
+            total=len(files_to_process),
+            successful=0,
+            failed=0,
+        )
+
+        for file_path in files_to_process:
+            progress.update(
+                task_id,
+                description=f"Processing [cyan]{file_path.name}[/cyan]...",
+            )
 
             try:
                 # Delegate to the core pipeline service
                 dest_path, metadata, ext_method = process_document(file_path)
+                successful += 1
             except Exception as e:
+                failed += 1
                 console.print(f"[red]✗ Failed:[/red] {file_path.name}\n  Reason: {str(e)}")
-                continue
-
-        # Terminal UI Output
-        console.print(
-            f"[green]✓ Ingested:[/green] {file_path.name}\n"
-            f"  [dim]Category:[/dim] {metadata.category} | [dim]Issuer:[/dim] {metadata.issuer} | [dim]Method:[/dim] {ext_method}\n"
-            f"  [dim]Archived at:[/dim] {dest_path}\n"
-        )
+            else:
+                # Terminal UI Output
+                console.print(
+                    f"[green]✓ Ingested:[/green] {file_path.name}\n"
+                    f"  [dim]Category:[/dim] {metadata.category} | [dim]Issuer:[/dim] {metadata.issuer} | [dim]Method:[/dim] {ext_method}\n"
+                    f"  [dim]Archived at:[/dim] {dest_path}\n"
+                )
+            finally:
+                progress.update(
+                    task_id,
+                    advance=1,
+                    successful=successful,
+                    failed=failed,
+                )
 
 
 @app.command()
@@ -141,7 +171,7 @@ def search(
             row["document_date"] or "UNKNOWN",
             row["category"],
             row["issuer"],
-            row["canonical_filename"],
+            row["canonical_filename"][:20] + "..." if len(row["canonical_filename"]) > 20 else row["canonical_filename"],
             str(row["archive_path"]),
         )
 
